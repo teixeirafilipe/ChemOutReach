@@ -11,7 +11,8 @@ class Individual(list):
 class Population(list):
     def __init__(self, n_pop, n_genes, pool, 
                  score_func, cross_func, mut_func,
-                 death_ratio=0.5, mut_prob=0.05, random_state=None):
+                 death_ratio=0.5, mut_prob=0.05, collective_eval=False,
+                 random_state=None):
         self._np = n_pop
         self._ng = n_genes
         self._dr = death_ratio
@@ -21,6 +22,7 @@ class Population(list):
         self._scoref = score_func
         self._crossf = cross_func
         self._mutf = mut_func
+        self._ceval=collective_eval
         if random_state:
             self._rng=np.random.default_rng(seed=random_state)
         else:
@@ -28,8 +30,13 @@ class Population(list):
         for n in range(self._np):
             self.append(Individual(self._rng.choice(pool,size=self._ng)))
         # make initial eval
-        for i in self:
-            i.score = score_func(i)
+        if self._ceval:
+            scores = score_func(self)
+            for i,s in enumerate(scores):
+                self[i].score=s
+        else:
+            for i in self:
+                i.score = score_func(i)
         self.sort()
     def _iterate(self):
         # number of survivals
@@ -56,7 +63,12 @@ class Population(list):
             self[n]=self._crossf(self[p1],self[p2])
             if self._rng.uniform() <= self._mp:
                 self[n]=self._mutf(self[n], self._rng)
-            self[n].score = self._scoref(self[n])
+            if not self._ceval:
+                self[n].score = self._scoref(self[n])
+        if self._ceval:
+            part_scores=self._scoref(self[nsurv:])
+            for i,ind in enumerate(self[nsurv:]):
+                ind.score = part_scores[i]
         self.sort()
     def run(self, n_iters, trj_fn="", verbose=0):
         if trj_fn:
