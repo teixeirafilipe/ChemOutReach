@@ -1,0 +1,36 @@
+units			      real
+atom_style		  full
+bond_style      harmonic
+angle_style     harmonic
+dihedral_style  harmonic
+pair_style      lj/cut/coul/cut 10.0 12.0
+pair_modify     mix arithmetic
+neigh_modify    delay 5 every 1 one 10000
+special_bonds   amber                               
+
+read_data argon_water_eq.data
+
+group argon molecule 1
+group water type 2 3
+
+change_box all boundary f f f
+fix walls all wall/reflect xlo EDGE xhi EDGE ylo EDGE yhi EDGE zlo EDGE zhi EDGE
+
+timestep 0.5
+fix tip3p water shake 0.001 10 0 b 1 a 1
+fix gravity water addforce 1.0e-4 0.0 0.0
+fix ar argon setforce 0.0 0.0 0.0
+fix 1 all nve
+
+thermo 20
+thermo_style custom step time temp pe ke 
+dump 1 all atom 20 result_${v}.lammpstrj
+
+run 2000
+
+unfix ar
+set atom 1 vx $v vy 0.0 vz 0.0
+
+run 20000
+
+undump 1
